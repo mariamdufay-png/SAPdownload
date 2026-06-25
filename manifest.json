@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "SAP Invoice Downloader",
+  "version": "0.1.0",
+  "description": "Assistant Chrome pour automatiser VIM Analytics SAP Fiori: ouvrir les pièces jointes, afficher la facture fournisseur et préparer le téléchargement.",
+  "permissions": ["activeTab", "scripting", "storage", "downloads"],
+  "host_permissions": ["https://sapfiori.hec.mpi-internal.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "SAP Invoice Downloader",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://sapfiori.hec.mpi-internal.com/*"],
+      "js": ["content.js"],
+      "css": ["style.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
