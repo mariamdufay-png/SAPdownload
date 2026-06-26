@@ -166,17 +166,6 @@
   await sleep(1200);
   detect();
 }
-    const d = display.getBoundingClientRect();
-const realDisplay =
-  doc.elementFromPoint(d.left + d.width / 2, d.top + d.height / 2) || display;
-
-click(realDisplay, "Display");
-
-    await sleep(1200);
-
-const display = doc.getElementById("C188_toolbar_btn2");
-click(display, "Display");
-}
 
   async function clickDownload() {
     const doc = frameDoc();
