@@ -140,34 +140,32 @@
     detect();
   }
 
-  async function openFranceSupplierInvoice() {
-    const doc = frameDoc();
+ async function openFranceSupplierInvoice() {
+  const doc = frameDoc();
 
-    // Trouve le texte
-    const el = await waitFor(() =>
-        [...doc.querySelectorAll("td,span,div")]
-            .find(e => e.innerText?.trim() === STATE.targetAttachmentText),
-        "France - Supplier Invoices"
-    );
+  const el = await waitFor(() =>
+    [...doc.querySelectorAll("td,span,div")]
+      .find(e => e.innerText?.trim() === STATE.targetAttachmentText),
+    "France - Supplier Invoices"
+  );
 
-    // Clique au bon endroit sur la ligne
-    const r = el.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
 
-    const target =
-        doc.elementFromPoint(r.left + 40, r.top + r.height / 2) ||
-        doc.elementFromPoint(r.left + 20, r.top + r.height / 2) ||
-        el;
+  const target =
+    doc.elementFromPoint(r.left + 40, r.top + r.height / 2) ||
+    doc.elementFromPoint(r.left + 20, r.top + r.height / 2) ||
+    el;
 
-    click(target, "Sélection ligne France - Supplier Invoices");
+  click(target, "Sélection ligne France - Supplier Invoices");
 
-    await sleep(700);
+  await sleep(1200);
 
-    // Puis Display
-    const display = await waitFor(
-        () => findDisplayButton(doc),
-        "Display"
-    );
+  const display = doc.getElementById("C188_toolbar_btn2");
+  click(display, "Display");
 
+  await sleep(1200);
+  detect();
+}
     const d = display.getBoundingClientRect();
 const realDisplay =
   doc.elementFromPoint(d.left + d.width / 2, d.top + d.height / 2) || display;
