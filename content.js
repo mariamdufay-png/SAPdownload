@@ -160,7 +160,14 @@
 
   await sleep(1200);
 
-  const display = doc.getElementById("C188_toolbar_btn2");
+  const display =
+  doc.querySelector('[title="Display"][aria-label="Display"]') ||
+  doc.querySelector('[title="Display"]') ||
+  doc.querySelector('[aria-label="Display"]') ||
+  [...doc.querySelectorAll('[id$="_toolbar_btn2"]')].find(e =>
+    e.getAttribute("title") === "Display" ||
+    e.getAttribute("aria-label") === "Display"
+  );
   click(display, "Display");
 
   await sleep(1200);
