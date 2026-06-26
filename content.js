@@ -1,34 +1,11 @@
 (() => {
-  const STATE = {
-    targetAttachmentText: "France - Supplier Invoices",
-    iframeId: "application-VIMAnalytics-display-iframe",
+  const CONFIG = {
+    iframeContains: "VIMAnalytics",
+    attachmentText: "France - Supplier Invoices",
     delay: 900
   };
 
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-  function frameDoc() {
-    const f = document.getElementById(STATE.iframeId);
-    if (!f || !f.contentWindow || !f.contentWindow.document) {
-      throw new Error("iframe SAP introuvable");
-    }
-    return f.contentWindow.document;
-  }
-
-  function textOf(el) {
-    return (el?.innerText || el?.textContent || el?.getAttribute?.("title") || el?.getAttribute?.("aria-label") || "").trim();
-  }
-
-  function norm(x) {
-    return String(x || "").replace(/\s+/g, " ").trim().toLowerCase();
-  }
-
-  function visible(el) {
-    if (!el) return false;
-    const r = el.getBoundingClientRect();
-    const s = el.ownerDocument.defaultView.getComputedStyle(el);
-    return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden";
-  }
 
   function log(msg) {
     const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -38,6 +15,27 @@
       box.textContent += line + "\n";
       box.scrollTop = box.scrollHeight;
     }
+  }
+
+  function norm(x) {
+    return String(x || "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
+  function textOf(el) {
+    return (
+      el?.innerText ||
+      el?.textContent ||
+      el?.getAttribute?.("title") ||
+      el?.getAttribute?.("aria-label") ||
+      ""
+    ).trim();
+  }
+
+  function visible(el) {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const s = el.ownerDocument.defaultView.getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.display !== "none" && s.visibility !== "hidden";
   }
 
   function click(el, label) {
@@ -60,134 +58,165 @@
     throw new Error(label + " introuvable après " + timeout + " ms");
   }
 
-  function all(scope, selector) {
-    return [...scope.querySelectorAll(selector)].filter(visible);
+  function getIframeDocument() {
+    const iframe = [...document.querySelectorAll("iframe")]
+      .find(f => f.id.includes(CONFIG.iframeContains) || f.name.includes(CONFIG.iframeContains));
+
+    if (!iframe?.contentWindow?.document) {
+      throw new Error("iframe VIMAnalytics introuvable");
+    }
+
+    return iframe.contentWindow.document;
   }
 
-  function findText(scope, txt) {
-    const wanted = norm(txt);
-    return all(scope, "button,[role='button'],a,span,div,td,tr")
+  function all(doc, selector) {
+    return [...doc.querySelectorAll(selector)].filter(visible);
+  }
+
+  function findByText(doc, text) {
+    const wanted = norm(text);
+    return all(doc, "button,[role='button'],a,span,div,td,tr")
       .find(e => norm(textOf(e)).includes(wanted));
   }
 
-  function findButton(scope, txt) {
-    const el = findText(scope, txt);
+  function findButtonByText(doc, text) {
+    const el = findByText(doc, text);
     return el?.closest("button,[role='button'],.sapMBtn,.sapUiBtn") || el;
   }
 
-  function findAttachmentRow(doc) {
-    const wanted = norm(STATE.targetAttachmentText);
-    const rows = all(doc, "tr,[role='row'],.sapMListTblRow,.sapMLIB,.sapUiTableRow");
-    return rows.find(r => norm(textOf(r)).includes(wanted));
+  function findMainAttachmentButton() {
+    return findButtonByText(document, "Attachment List");
   }
 
-  function findDisplayButton(doc) {
-  const buttons = [...doc.querySelectorAll("button,[role='button'],div,span")]
-    .filter(visible);
+  function findAttachmentTextElement(sapDoc) {
+    return [...sapDoc.querySelectorAll("td,span,div")]
+      .filter(visible)
+      .find(e => e.innerText?.trim() === CONFIG.attachmentText);
+  }
 
-  return buttons.find(b => {
-    const txt = norm([
-      b.innerText,
-      b.textContent,
-      b.getAttribute("title"),
-      b.getAttribute("aria-label"),
-      b.id,
-      b.getAttribute("data-sap-ui")
-    ].filter(Boolean).join(" "));
-
+  function findDisplayButton(sapDoc) {
     return (
-      txt.includes("display") ||
-      txt.includes("atta_display") ||
-      txt.includes("display attachment")
+      sapDoc.querySelector('[title="Display"][aria-label="Display"]') ||
+      sapDoc.querySelector('[title="Display"]') ||
+      sapDoc.querySelector('[aria-label="Display"]') ||
+      [...sapDoc.querySelectorAll('[id$="_toolbar_btn2"]')].find(e =>
+        e.getAttribute("title") === "Display" ||
+        e.getAttribute("aria-label") === "Display"
+      )
     );
-  });
-}
+  }
 
-  function findDownloadButton(doc) {
-    const buttons = all(doc, "button,[role='button'],div,span");
-    return findButton(doc, "Download") || findButton(doc, "Télécharger") || findButton(doc, "Telecharger") || buttons.find(b => {
-      const t = norm([
-        textOf(b),
-        b.getAttribute("title"),
-        b.getAttribute("aria-label"),
-        b.id
-      ].filter(Boolean).join(" "));
-      return t.includes("download") || t.includes("télécharger") || t.includes("telecharger");
-    });
+  function findDownloadButton() {
+    const docs = [document];
+
+    try {
+      docs.push(getIframeDocument());
+    } catch (_) {}
+
+    for (const doc of docs) {
+      const btn =
+        doc.querySelector('[title="Download"]') ||
+        doc.querySelector('[aria-label="Download"]') ||
+        doc.querySelector('[title="Télécharger"]') ||
+        doc.querySelector('[aria-label="Télécharger"]') ||
+        findButtonByText(doc, "Download") ||
+        findButtonByText(doc, "Télécharger") ||
+        findButtonByText(doc, "Telecharger");
+
+      if (btn) return btn;
+    }
+
+    return null;
   }
 
   function detect() {
-    const doc = frameDoc();
-    const rows = all(doc, "tr,[role='row'],.sapMListTblRow,.sapMLIB,.sapUiTableRow");
+    let sapDoc = null;
+    try {
+      sapDoc = getIframeDocument();
+    } catch (_) {}
+
     const result = {
-      iframe: true,
-      rows: rows.length,
-      attachmentList: !!findButton(doc, "Attachment List"),
-      franceSupplierInvoices: !!findAttachmentRow(doc),
-      display: !!findDisplayButton(doc),
-      download: !!findDownloadButton(doc),
-      bodyHasFrance: doc.body.innerText.includes(STATE.targetAttachmentText)
+      mainAttachmentList: !!findMainAttachmentButton(),
+      iframe: !!sapDoc,
+      iframeRows: sapDoc ? all(sapDoc, "tr,[role='row'],.sapMListTblRow,.sapMLIB,.sapUiTableRow").length : 0,
+      bodyHasFrance: sapDoc ? sapDoc.body.innerText.includes(CONFIG.attachmentText) : false,
+      franceTextElement: sapDoc ? !!findAttachmentTextElement(sapDoc) : false,
+      display: sapDoc ? !!findDisplayButton(sapDoc) : false,
+      download: !!findDownloadButton()
     };
+
     log("Detection: " + JSON.stringify(result));
     return result;
   }
 
   async function openAttachmentList() {
-    const doc = frameDoc();
-    const btn = await waitFor(() => findButton(doc, "Attachment List"), "Attachment List");
+    const btn = await waitFor(() => findMainAttachmentButton(), "Attachment List page principale");
     click(btn, "Attachment List");
-    await sleep(STATE.delay);
+    await sleep(1200);
     detect();
   }
 
- async function openFranceSupplierInvoice() {
-  const doc = frameDoc();
+  async function selectFranceSupplierInvoice() {
+    const sapDoc = getIframeDocument();
 
-  const el = await waitFor(() =>
-    [...doc.querySelectorAll("td,span,div")]
-      .find(e => e.innerText?.trim() === STATE.targetAttachmentText),
-    "France - Supplier Invoices"
-  );
+    const el = await waitFor(
+      () => findAttachmentTextElement(sapDoc),
+      CONFIG.attachmentText,
+      10000
+    );
 
-  const r = el.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
 
-  const target =
-    doc.elementFromPoint(r.left + 40, r.top + r.height / 2) ||
-    doc.elementFromPoint(r.left + 20, r.top + r.height / 2) ||
-    el;
+    const target =
+      sapDoc.elementFromPoint(r.left + 40, r.top + r.height / 2) ||
+      sapDoc.elementFromPoint(r.left + 20, r.top + r.height / 2) ||
+      el;
 
-  click(target, "Sélection ligne France - Supplier Invoices");
+    click(target, "Sélection ligne France - Supplier Invoices");
+    await sleep(1200);
+  }
 
-  await sleep(1200);
+  async function clickDisplay() {
+    const sapDoc = getIframeDocument();
 
-  const display =
-  doc.querySelector('[title="Display"][aria-label="Display"]') ||
-  doc.querySelector('[title="Display"]') ||
-  doc.querySelector('[aria-label="Display"]') ||
-  [...doc.querySelectorAll('[id$="_toolbar_btn2"]')].find(e =>
-    e.getAttribute("title") === "Display" ||
-    e.getAttribute("aria-label") === "Display"
-  );
-  click(display, "Display");
+    const display = await waitFor(
+      () => findDisplayButton(sapDoc),
+      "Display",
+      10000
+    );
 
-  await sleep(1200);
-  detect();
-}
+    click(display, "Display");
+    await sleep(1500);
+  }
 
-  async function clickDownload() {
-    const doc = frameDoc();
-    const btn = await waitFor(() => findDownloadButton(doc), "Download");
-    click(btn, "Download");
-    await sleep(STATE.delay);
-    detect();
+  async function openFranceAndDisplay() {
+    try {
+      await selectFranceSupplierInvoice();
+      await clickDisplay();
+      log("Display exécuté.");
+    } catch (e) {
+      log("Erreur: " + e.message);
+    }
   }
 
   async function testOneInvoice() {
     try {
       log("Test facture courante lancé.");
       await openAttachmentList();
-      await openFranceSupplierInvoice();
-      log("PDF ouvert. Teste maintenant Cliquer Download.");
+      await selectFranceSupplierInvoice();
+      await clickDisplay();
+      log("PDF demandé.");
+    } catch (e) {
+      log("Erreur: " + e.message);
+    }
+  }
+
+  async function clickDownload() {
+    try {
+      const btn = await waitFor(() => findDownloadButton(), "Download", 10000);
+      click(btn, "Download");
+      await sleep(1000);
+      detect();
     } catch (e) {
       log("Erreur: " + e.message);
     }
@@ -201,19 +230,20 @@
     panel.innerHTML = `
       <header>SAP Invoice Downloader</header>
       <div class="sid-body">
-        <button id="sid-detect">Tester la detection iframe</button>
-        <button id="sid-attachment">Cliquer Attachment List</button>
-        <button id="sid-display">France + Display</button>
-        <button id="sid-download">Cliquer Download</button>
+        <button id="sid-detect">Tester detection</button>
+        <button id="sid-attachment">1. Attachment List</button>
+        <button id="sid-display">2. France + Display</button>
+        <button id="sid-download">3. Download</button>
         <button id="sid-test-one" class="secondary">Test facture courante</button>
         <pre id="sid-log"></pre>
       </div>
     `;
+
     document.documentElement.appendChild(panel);
 
     document.getElementById("sid-detect").onclick = detect;
     document.getElementById("sid-attachment").onclick = openAttachmentList;
-    document.getElementById("sid-display").onclick = openFranceSupplierInvoice;
+    document.getElementById("sid-display").onclick = openFranceAndDisplay;
     document.getElementById("sid-download").onclick = clickDownload;
     document.getElementById("sid-test-one").onclick = testOneInvoice;
 
@@ -225,6 +255,7 @@
       sendResponse({ ok: true, data: detect() });
       return true;
     }
+
     if (message?.type === "SID_SHOW_PANEL") {
       ensurePanel();
       sendResponse({ ok: true });
