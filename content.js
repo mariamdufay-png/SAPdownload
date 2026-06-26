@@ -176,7 +176,8 @@ click(realDisplay, "Display");
 
     await sleep(1200);
 
-    detect();
+const display = doc.getElementById("C188_toolbar_btn2");
+click(display, "Display");
 }
 
   async function clickDownload() {
