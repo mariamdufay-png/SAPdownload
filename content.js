@@ -82,17 +82,26 @@
   }
 
   function findDisplayButton(doc) {
-    const buttons = all(doc, "button,[role='button'],div,span");
-    return findButton(doc, "Display") || buttons.find(b => {
-      const t = norm([
-        textOf(b),
-        b.getAttribute("title"),
-        b.getAttribute("aria-label"),
-        b.id
-      ].filter(Boolean).join(" "));
-      return t.includes("display") || t.includes("afficher") || t.includes("atta_display");
-    });
-  }
+  const buttons = [...doc.querySelectorAll("button,[role='button'],div,span")]
+    .filter(visible);
+
+  return buttons.find(b => {
+    const txt = norm([
+      b.innerText,
+      b.textContent,
+      b.getAttribute("title"),
+      b.getAttribute("aria-label"),
+      b.id,
+      b.getAttribute("data-sap-ui")
+    ].filter(Boolean).join(" "));
+
+    return (
+      txt.includes("display") ||
+      txt.includes("atta_display") ||
+      txt.includes("display attachment")
+    );
+  });
+}
 
   function findDownloadButton(doc) {
     const buttons = all(doc, "button,[role='button'],div,span");
@@ -159,7 +168,11 @@
         "Display"
     );
 
-    click(display, "Display");
+    const d = display.getBoundingClientRect();
+const realDisplay =
+  doc.elementFromPoint(d.left + d.width / 2, d.top + d.height / 2) || display;
+
+click(realDisplay, "Display");
 
     await sleep(1200);
 
