@@ -133,15 +133,38 @@
 
   async function openFranceSupplierInvoice() {
     const doc = frameDoc();
-    const row = await waitFor(() => findAttachmentRow(doc), STATE.targetAttachmentText);
-    click(row, STATE.targetAttachmentText);
-    await sleep(500);
 
-    const display = await waitFor(() => findDisplayButton(doc), "Display");
+    // Trouve le texte
+    const el = await waitFor(() =>
+        [...doc.querySelectorAll("td,span,div")]
+            .find(e => e.innerText?.trim() === STATE.targetAttachmentText),
+        "France - Supplier Invoices"
+    );
+
+    // Clique au bon endroit sur la ligne
+    const r = el.getBoundingClientRect();
+
+    const target =
+        doc.elementFromPoint(r.left + 40, r.top + r.height / 2) ||
+        doc.elementFromPoint(r.left + 20, r.top + r.height / 2) ||
+        el;
+
+    click(target, "Sélection ligne France - Supplier Invoices");
+
+    await sleep(700);
+
+    // Puis Display
+    const display = await waitFor(
+        () => findDisplayButton(doc),
+        "Display"
+    );
+
     click(display, "Display");
-    await sleep(STATE.delay);
+
+    await sleep(1200);
+
     detect();
-  }
+}
 
   async function clickDownload() {
     const doc = frameDoc();
